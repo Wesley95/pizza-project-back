@@ -5,11 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Ingredient extends Model
+class ProductIngredient extends Model
 {
     use HasFactory;
 
-    public $table = "ingredients";
+    public $table = "product_ingredient";
 
     /**
      * The attributes that are mass assignable.
@@ -17,18 +17,11 @@ class Ingredient extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'name',
-        'slug',
+        'product_id',        
+        'ingredient_id',
         'price',
-        'description',
-        'status'
+        'included'
     ];
 
     public $timestamps = false;
-
-    public function products()
-    {
-        return $this->belongsToMany(Product::class, 'product_ingredient')
-            ->withPivot(['price', 'included']);
-    }
 }

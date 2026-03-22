@@ -99,7 +99,11 @@ class IngredientController extends Controller
      * @return mixed
      */
     public function paginate(Request $request) {
-        $ingredients = $this->ingredient->search($request->except('_token'))->paginate($request->per_page ?? 10);
+        $ingredients = 
+            isset($request->page) ? 
+            $this->ingredient->search($request->except('_token'))->paginate($request->per_page ?? 10) :
+            Ingredient::get();
+
         return response()->json($ingredients);
     }
 

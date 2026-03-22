@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\IngredientController;
+use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -49,6 +50,15 @@ Route::middleware('auth:sanctum')->group(function(){
             Route::post('/edit', [IngredientController::class, "edit"]);
             Route::post('/change-status', [IngredientController::class, "changeStatus"]);
             Route::post('/import', [IngredientController::class, "import"]);
+        });
+
+        Route::group(['as' => 'product','prefix' => 'product'], function() {
+            Route::get('/', [ProductController::class, 'paginate']);
+            Route::get('/{id}', [ProductController::class, 'show'])->whereNumber('id');
+            Route::post('/add', [ProductController::class, 'store']);
+            Route::post('/edit', [ProductController::class, "edit"]);
+            Route::post('/change-status', [ProductController::class, "changeStatus"]);
+            Route::post('/import', [ProductController::class, "import"]);
         });
 
         Route::get('/check-token', function(Request $request) {
