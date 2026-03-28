@@ -49,4 +49,8 @@ class Product extends Model
         return $this->belongsToMany(Ingredient::class, 'product_ingredient')
             ->withPivot(['price', 'included']);
     }
+
+    public function category() {
+        return $this->belongsTo(Category::class);
+    }
 }

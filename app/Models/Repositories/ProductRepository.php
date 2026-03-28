@@ -18,10 +18,11 @@ class ProductRepository extends AbstractRepository {
      */
     public function search($filter){
         
-        $this->model = $this->model;
+        $this->model = $this->model->with('category');
 
         $search = $filter['search'] ?? null;
         $status = $filter['status'] ?? null;
+        $category_id = $filter['category_id'] ?? null;
 
         if($search) {
             $this->model = $this->model->where('name', 'like', "%$search%")->orWhere('slug', 'like', "%$search%");
@@ -29,6 +30,10 @@ class ProductRepository extends AbstractRepository {
 
         if($status) {
             $this->model = $this->model->where('status', $status == 'ativo');
+        }
+
+        if($category_id) {
+            $this->model = $this->model->where('category_id', $category_id);
         }
 
         return $this->model;

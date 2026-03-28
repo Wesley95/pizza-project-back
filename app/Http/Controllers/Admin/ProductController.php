@@ -152,7 +152,9 @@ class ProductController extends Controller
                 return $this->notFound("Produto não encontrado");
             }
 
-           $product->setRelation('ingredients', $product->ingredients->map(function ($item) {
+            $product->image = isset($product->image) ? asset('storage/' . $this->image_path . DIRECTORY_SEPARATOR . $product->image) : null;
+
+            $product->setRelation('ingredients', $product->ingredients->map(function ($item) {
                 return [
                     'id' => $item->id,
                     'name' => $item->name,
@@ -177,6 +179,9 @@ class ProductController extends Controller
      */
     public function paginate(Request $request) {
         $products = $this->product->search($request->except('_token'))->paginate($request->per_page ?? 10);
+
+        foreach($products as $value)
+            $value->image = isset($value->image) ? asset('storage/' . $this->image_path . DIRECTORY_SEPARATOR . $value->image) : null;
 
         return response()->json($products);
     }
