@@ -187,6 +187,21 @@ class ProductController extends Controller
     }
 
     /**
+     * Realiza o retorno dos itens disponíveis no menu
+     * @param \Illuminate\Http\Request $request
+     * 
+     * @return mixed
+     */
+    public function menu(Request $request) {
+        $products = $this->product->search($request->except('_token'))->get();
+
+        foreach($products as $value)
+            $value->image = isset($value->image) ? asset('storage/' . $this->image_path . DIRECTORY_SEPARATOR . $value->image) : null;
+
+        return response()->json($products);
+    }
+
+    /**
      * Realiza a atualização dos status baseado nos ids e status enviados
      * 
      * @param \Illuminate\Http\Request $request

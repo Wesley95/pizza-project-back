@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\IngredientController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\MenuController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -67,3 +68,8 @@ Route::middleware('auth:sanctum')->group(function(){
     });
 });
 
+Route::group(['as' => 'menu','prefix' => 'menu'], function() {
+    Route::get('/', [MenuController::class, 'menu'])->name('menu');
+    Route::get('/{id}', [MenuController::class, 'show'])->whereNumber('id')->name('show');
+    Route::get('/check-availability', [MenuController::class, 'checkAvailability'])->name('checkAvailability');
+});
