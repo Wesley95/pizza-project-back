@@ -53,8 +53,8 @@ class MenuController extends Controller
      * @return mixed
      */
     public function show($id) {
-        $product = self::getActivedProducts([$id]);
-        $product = $product[0] ?? null;
+        $products = $this->product->getActivedProducts([$id]);
+        $product = self::adjustProducts($products)[0] ?? null;
 
         if(!$product)
             return $this->notFound("Produto não encontrado");
@@ -65,7 +65,7 @@ class MenuController extends Controller
     }
 
     /**
-     * Realiza a checagem de disponibilidade dos produtos
+     * Realiza a checagem de disponibilidade do produto
      * 
      * @param \Illuminate\Http\Request $request
      * 
@@ -73,7 +73,8 @@ class MenuController extends Controller
      */
     public function checkAvailability(Request $request) {
         try {
-            $product = self::getActivedProducts([$request->productId ?? 0])[0] ?? null;
+            $products = $this->product->getActivedProducts([$request->productId ?? 0]) ?? null;
+            $product = $products[0] ?? null;
             
             if (!$product) {
                 return $this->notFound("Produto não disponível ou não encontrado");
@@ -107,22 +108,100 @@ class MenuController extends Controller
     }
 
     /**
-     * Realiza o retorno de um produto baseado no id enviado
+     * Realiza a checagem de disponibilidade dos produtos
      * 
-     * @param string|int $id
+     * @param \Illuminate\Http\Request $request
+     * 
+     * @return mixed
      */
-    private function getActivedProducts($id = [0]) {
-        return Product::where([
-            'status' => true,
-            'visibility' => 'public',
-        ])
-        ->whereIn('id', $id)
-        ->with([
-            'ingredients' => function ($query) {
-                $query->where('status', true);
-            },
-            'category'
-        ])
-        ->get();
+    public function updateCartValues(Request $request) {
+        try {
+            $data = $request->all();
+            $ids = array_map(fn($e) => $e['productId'] , $data);
+            $products = $this->product->getActivedProducts($ids ?? []) ?? null;
+            $products = $products->keyBy(fn($item) => "id-" . $item->id);
+
+            $prods = [];
+
+            foreach($data as $d) {
+                if(!$d) continue;
+                $id = $d['productId'];
+
+                $product = $products['id-'.$id] ?? null;
+
+                if(!$product) continue;
+
+                $discountValue = $product->price * ($product->discount / 100);
+
+                $obj = [
+                    'count' => isset($d['count']) ? intval($d['count']) : 1,
+                    'name' => $product->name,
+                    'sku' => $product->sku,
+                    'originalPrice' => $product->price,
+                    'price' => $product->price - ($discountValue),
+                    'description' => $product->description,
+                    'discount' => $product->discount,
+                    'discountValue' => $discountValue,
+                    'image' => isset($product->image) ? asset('storage/' . $this->image_path . "/" . $product->image) : null,
+                    'productId' => $product->id,
+                    'customized' => $product->customized,
+                ];
+
+                $product->setRelation('ingredients', ($product->ingredients ?? [])->keyBy(function($item, $key) {
+                    return 'id-' . $item['id'];
+                }));
+
+                $ingredients = [];
+
+                foreach (($d['ingredients'] ?? []) as $cur) {
+                    if (empty($cur['id']) || !$product->ingredients->has('id-' . $cur['id'])) continue;
+                    
+                    $ing = $product->ingredients['id-' . $cur['id']];
+
+                    if(!$ing->status) continue;
+
+                    $ingredients[] = [
+                        'checked' => $ing->pivot->included ? false : filter_var($cur['checked'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                        'description' => $ing->description,
+                        'id' => $ing->id,
+                        'included' => $ing->pivot->included,
+                        'name' => $ing->name,
+                        'price' => $ing->pivot->price,
+                        'slug' => $ing->slug,
+                    ];
+                }
+                $obj['ingredients'] = $ingredients ?? [];
+
+                $prods[] = $obj;
+            }
+
+            return $this->success([
+                'products' => $prods
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->error($e->getMessage());
+        }
+    }
+
+    /**
+     * Realiza a limpeza dos produtos, retirando os ingredientes caso o produto não seja customizável
+     * 
+     * @param Illuminate\Database\Eloquent\Collection<Product> $products
+     * 
+     * @return Illuminate\Database\Eloquent\Collection<Product>
+     */
+    private function adjustProducts($products) {
+        return $products->each(function ($product) {
+            if (!$product->customized) {
+                $filtered = $product->ingredients
+                    ->filter(function ($ingredient) {
+                        return $ingredient->pivot->included == 1;
+                    })
+                    ->values();
+
+                $product->setRelation('ingredients', $filtered);
+            }
+        });
     }
 }

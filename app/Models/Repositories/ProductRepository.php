@@ -38,4 +38,26 @@ class ProductRepository extends AbstractRepository {
 
         return $this->model;
     }
+
+    /**
+     * Realiza o retorno de um produto baseado no id enviado
+     * 
+     * @param string|int $id
+     * 
+     * @return Illuminate\Database\Eloquent\Collection<Product>
+     */
+    public function getActivedProducts($id = [0]) {
+        return $this->model->where([
+            'status' => true,
+            'visibility' => 'public',
+        ])
+        ->whereIn('id', $id)
+        ->with([
+            'ingredients' => function ($query) {
+                $query->where('status', true);
+            },
+            'category'
+        ])
+        ->get();
+    }
 }

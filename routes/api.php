@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\IngredientController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\OrderController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -72,4 +73,12 @@ Route::group(['as' => 'menu','prefix' => 'menu'], function() {
     Route::get('/', [MenuController::class, 'menu'])->name('menu');
     Route::get('/{id}', [MenuController::class, 'show'])->whereNumber('id')->name('show');
     Route::get('/check-availability', [MenuController::class, 'checkAvailability'])->name('checkAvailability');
+    Route::get('/update-cart', [MenuController::class, 'updateCartValues'])->name('updateCartValues');
 });
+
+Route::group(['as' => 'order','prefix' => 'order'], function() {
+    Route::post('/', [OrderController::class, 'create'])->name('create');
+    Route::get('/{id}', [OrderController::class, 'show'])->whereNumber('id')->name('show');
+    Route::post('/{id}/shipping-data', [OrderController::class, 'setShippingData'])->whereNumber('id')->name('shipping-data');
+    Route::post('/{id}/payment', [OrderController::class, 'setPayment'])->whereNumber('id')->name('payment');
+}); 

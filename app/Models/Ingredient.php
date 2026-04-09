@@ -23,6 +23,16 @@ class Ingredient extends Model
         'description',
         'status'
     ];
+    
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'status' => 'boolean'
+    ];
+
 
     public $timestamps = false;
 

@@ -39,7 +39,8 @@ class Product extends Model
     protected $casts = [
         'customized' => 'boolean',
         'highlight' => 'boolean',
-        'actived' => 'boolean'
+        'actived' => 'boolean',
+        'status' => 'boolean',
     ];
 
     public $timestamps = true;

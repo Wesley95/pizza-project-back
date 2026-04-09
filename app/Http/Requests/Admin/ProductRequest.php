@@ -29,7 +29,7 @@ class ProductRequest extends FormRequest
             'name' => ['required','max:255','min:2','unique:products,name,'.$this->id],
             'sku' => ['required','unique:products,sku,'.$this->id],
             'price' => ['numeric', 'min:1', 'required'],
-            'discount' => ['numeric'],
+            'discount' => ['numeric','max:100'],
             'description' => ['max:255'],
             'visibility' => ['required', 'in:private,public'],
             'category_id' => ['required']
@@ -55,7 +55,8 @@ class ProductRequest extends FormRequest
             'max' => 'O campo deve conter no máximo :max caracteres',
             'min' => 'O campo deve conter no mínimo :min caracteres',
             'visibility.required' => 'Defina o tipo de exibição do produto',
-            'category_id.required' => 'Selecione a categoria do produto'
+            'category_id.required' => 'Selecione a categoria do produto',
+            'discount.max' => 'O desconto máximo é de :max porcento'
         ];
 
         return $data;
