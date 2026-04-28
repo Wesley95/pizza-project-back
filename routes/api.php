@@ -22,12 +22,11 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::group(['as' => 'admin','prefix' => 'admin'], function() {
+    
+Route::group(['as' => 'admin', 'prefix' => 'admin'], function(){
     Route::post('/login', [AuthController::class, 'login']);
-});
 
-Route::middleware('auth:sanctum')->group(function(){
-    Route::group(['as' => 'admin', 'prefix' => 'admin'], function(){
+    Route::middleware('auth:sanctum')->group(function(){
         Route::group(['as' => 'users', 'prefix' => 'users'], function() {
             Route::get('/', [UserController::class, "paginate"])->name('get');
             Route::post('/add', [UserController::class, "store"])->name('add');
@@ -64,8 +63,6 @@ Route::middleware('auth:sanctum')->group(function(){
             Route::post('/import', [ProductController::class, "import"])->name('change-status');
         });
 
-        
-
         Route::get('/check-token', function(Request $request) {
             return $request->user();
         });
@@ -73,11 +70,11 @@ Route::middleware('auth:sanctum')->group(function(){
 });
 
 Route::group(['as' => 'order','prefix' => 'order'], function() {
-            Route::get('/', [AdminOrderController::class, 'paginate']);
-            Route::get('/{id}', [AdminOrderController::class, 'show'])->whereNumber('id');
-            
-            // Route::post('/change-status', [AdminOrderController::class, "changeStatus"]);
-        });
+    Route::get('/', [AdminOrderController::class, 'paginate']);
+    Route::get('/{id}', [AdminOrderController::class, 'show'])->whereNumber('id');
+    
+    // Route::post('/change-status', [AdminOrderController::class, "changeStatus"]);
+});
 
 Route::group(['as' => 'menu','prefix' => 'menu'], function() {
     Route::get('/', [MenuController::class, 'menu'])->name('menu');
