@@ -65,7 +65,7 @@ Route::group(['as' => 'admin', 'prefix' => 'admin'], function(){
 
         Route::get('/check-token', function(Request $request) {
             return $request->user();
-        });
+        })->name('check-token');
     });
 });
 
