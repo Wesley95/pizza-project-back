@@ -21,6 +21,7 @@ class CreateOrderTable extends Migration
             $table->string('token')->unique();
             $table->json('payment_data')->nullable();
             $table->decimal('total', 10,2)->default(0);
+            $table->dateTimeTz("expiration_date");
             $table->timestamps();
         });
     }

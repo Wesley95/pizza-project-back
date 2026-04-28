@@ -29,18 +29,6 @@ class PagSeguroClient {
     protected string $bearer_token;
 
     /**
-     * Define o user_name
-     * @var string
-     */
-    private string $user_name;
-
-    /**
-     * Define o user_pwd
-     * @var string
-     */
-    private string $user_pwd;
-
-    /**
      * Inicializador da classe de requisições do PagSeguroV2
      * @param boolean $sandbox
      */
@@ -49,40 +37,11 @@ class PagSeguroClient {
         $this->sandbox = config('pagseguro.sandbox');
         $this->token = config('pagseguro.token');
 
-        // $this->user_name = config('pagseguro.user-name');
-        // $this->user_pwd = config('pagseguro.user-pwd');
-
         $sandbox_link = $this->sandbox ?  'sandbox.' : '';
         $this->base_url = 'https://'.$sandbox_link.'api.pagseguro.com';
 
         // $this->setBearerToken();
     }
-
-    /**
-     * Realiza a captura de bearer token
-     * @var string
-     */
-    // public function setBearerToken(){
-    //     $url = $this->base_url . "/pix/oauth2";
-
-    //     // return [$this->user_name, $this->user_pwd];
-
-    //     $response = $this->request($url, "POST", [
-    //         "grant_type" => "client_credentials",
-    //         "scope" => "pix.write pix.read cob.write cob.read"
-    //     ],[                                    
-    //         'Authorization: Basic '. base64_encode($this->user_name.":".$this->user_pwd),
-    //         'Content-Type: application/json'
-    //     ]);
-
-    //     return $response;
-
-        
-    //     if(isset($this->bearer_token['access_token']))
-    //         $this->bearer_token = $this->bearer_token['access_token'];
-    //     else
-    //         throw new PagSeguroException('Erro ao capturar o bearer token');
-    // }
 
     /**
      * Realiza a execução da requisição

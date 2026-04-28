@@ -22,10 +22,27 @@ class Order extends Model
         'transaction_id',
         'payment_data',
         'token',
-        'total'
+        'total',
+        'expiration_date'
     ];
 
     public $timestamps = true;
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'expiration_date' => 'datetime'
+    ];
+
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            $model->expiration_date = now()->addMinutes(20);
+        });
+    }
 
     public function orderProducts() {
         return $this->hasMany(OrderProduct::class, 'order_id','id');

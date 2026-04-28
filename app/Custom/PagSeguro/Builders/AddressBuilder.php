@@ -62,7 +62,7 @@ class AddressBuilder {
      * 
      */
     private function setAddressComplement(array $address){
-        if(isset($address['complement'])){
+        if(isset($address['complement']) && strlen($address['complement'])){
             if(strlen($address['complement']) < 1 || strlen($address['complement']) > 40)
                 throw new PagSeguroException("O complemento deve conter entre 1 e 40 caractéres");
 

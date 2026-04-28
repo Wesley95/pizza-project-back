@@ -43,11 +43,23 @@ class PagSeguroCharge extends PagSeguroClient {
      */
     public function createCreditCard($orderId, $cardData)
     {
-        // dd([
-        //     $orderId,
-        //     $cardData
-        // ]);
         return $this->request($this->base_url . "/orders/{$orderId}/pay", 'POST', $cardData, [
+            'Authorization: Bearer ' . $this->token,
+            'Accept: application/json',
+            'Content-Type: application/json',
+        ]);
+    }
+
+    /**
+     * Realiza a busca das parcelas
+     * 
+     * @return mixed
+     */
+    public function checkFees(array $data) 
+    {
+        $url = http_build_query($data);
+
+        return $this->request($this->base_url . "/charges/fees/calculate?". $url, 'GET', [], [
             'Authorization: Bearer ' . $this->token,
             'Accept: application/json',
             'Content-Type: application/json',

@@ -179,6 +179,7 @@ class CardBuilder {
      */
     private function buildFromEncrypted(array $card) {
         $this->card['encrypted'] = $card['encrypted'];
+        unset($this->card['holder']);
         $this->setCardStore($card);
 
         return $this;

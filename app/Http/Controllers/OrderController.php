@@ -56,7 +56,7 @@ class OrderController extends Controller
                 'id' => $id,
                 'token' => $token
             ])
-            ->with('orderProducts','orderProducts.orderProductIngredients')->first();
+            ->with('orderProducts','orderProducts.orderProductIngredients','shippingData')->first();
 
             if(!$order) return $this->notFound('Pedido não encontrado');
 
@@ -218,7 +218,11 @@ class OrderController extends Controller
             if($order) {
                 return $this->success([
                     'id' => $order->id,
-                    'token' => $order->token
+                    'token' => $order->token,
+                    'status' => $order->status,
+                    'payment_status' => $order->payment_status,
+                    'total' => $order->total,
+                    'expiration_date' => $order->expiration_date
                 ]);
             }
 
@@ -246,74 +250,35 @@ class OrderController extends Controller
                 "document" => $request->document,
                 "email" => $request->email,
                 "phone" => $request->phone,
-                "cep" => $request->cep,
-                "street" => $request->street,
-                "neighborhood" => $request->neighborhood,
-                "complement" => $request->complement,
-                "number" => $request->number,
-                "uf" => $request->uf,
-                "city" => $request->city,
-                "reference" => $request->reference,
+                "cep" => $request->cep ?? "",
+                "street" => $request->street ?? "",
+                "neighborhood" => $request->neighborhood ?? "",
+                "complement" => $request->complement ?? "",
+                "number" => $request->number ?? "",
+                "uf" => $request->uf ?? "",
+                "city" => $request->city ?? "",
+                "reference" => $request->reference ?? "",
                 "is_delivery" => $request->shipping == "delivery",
                 "order_id" => $order->id,
             ]);
 
             if($order && $shipping) {
-                $expiration_date = (new \DateTime())->modify('+15 minutes')->format('c');
-                
-                $ref = (new ReferenceBuilder())->build($order->token);
-                $qrcode = (new QRCodesBuilder())
-                    ->setAmount($order->total)
-                    ->setPixDueDate($expiration_date)
-                    ->build();
-
-                $customer = (new CustomerBuilder())->build([
-                    'name' => $shipping->name,
-                    'tax_id' => $shipping->document,
-                    'email' => $shipping->email
-                ]);
-
-                $shipping = (new AddressBuilder())->build([
-                    'postal_code' => $shipping->cep,
-                    'country' => "BRA",
-                    'street' => $shipping->street,
-                    'locality' => $shipping->neighborhood,
-                    'complement' => $shipping->complement,
-                    'number' => $shipping->number,
-                    'region_code' => $shipping->uf,
-                    'city' => $shipping->city,
-                ]);
-
-                $ps_order = (new OrderBuilder())
-                    ->setReference($ref)
-                    ->setCustomer($customer)
-                    ->setShippingData($shipping);
-
-                foreach($order->orderProducts as $p) {
-                    $ps_order->setItem([
-                        'name' => $p['name'],
-                        'quantity' => $p['quantity'],
-                        'unit_amount' => $p['price']
-                    ]);
-                }
-                
-                $ps_order = $ps_order->build();
-
-                $ps_order['qr_codes'] = [
-                    $qrcode
-                ];
-
-                $response = (new PagSeguroOrder())->create($ps_order);
+                $response = $this->generateOrder($order, $shipping);
 
                 if(isset($response['id'])) {
                     $order->update([
                         'transaction_id' => $response['id'],
-                        'payment_data' => json_encode($response)
+                        'payment_data' => json_encode($response),
+                        'expiration_date' => now()->addMinutes(20)
                     ]);
 
                     return $this->success([
                         'id' => $order->id,
-                        'token' => $order->token
+                        'token' => $order->token,
+                        'shipping' => collect($shipping)->only([
+                            'name', 'document', 'email', 'phone', 'cep', 'street', 'neighborhood', 
+                            'complement', 'number', 'uf', 'city', 'reference', 'is_delivery'
+                        ])->toArray()
                     ]);
                 } else {
                     return $this->error("Ocorreu um erro durante a criação do pedido via PagBank");
@@ -322,7 +287,7 @@ class OrderController extends Controller
 
             return $this->error("Ocorreu um erro durante a criação do pedido via PagBank");
         }catch(\Exception $e) {
-            return $this->error("Ocorreu um erro no armazenamento dos dados de entrega.");
+            return $this->error("Ocorreu um erro no armazenamento dos dados de entrega." . $e->getMessage());
         }
     }
 
@@ -344,8 +309,6 @@ class OrderController extends Controller
                     return $this->success([
                         'paid' => true
                     ]);
-    
-                return $this->notFound("A ordem não está disponível para pagamento");
             }
     
             $ref = (new ReferenceBuilder())->build($order->token);
@@ -354,33 +317,26 @@ class OrderController extends Controller
     
             $ps_order = $ps_order->build();
     
-            $exp = explode("/", $request->expiration);
-    
             $card = (new CardBuilder())->build([
-                'number' => $request->card,
-                'exp_month' => $exp[0],
-                'exp_year' => "20" . $exp[1],
-                'cvv' => $request->cvv,
-                'security_code' => $request->cvv,
-                'store' => false,
-                'name' => $request->name
+                'encrypted' => $request->encryptedCard,
+                'store' => false
             ]);
     
             $charge = (new ChargeBuilder())
                 ->setAmount($order->total)
                 ->setPaymentMethod([
                     'capture' => true,
-                    'installments' => 1,
+                    'installments' => $request->installments ?? 1,
                     'type' => 'CREDIT_CARD',
                     'card' => $card
                 ])->build();
-    
+
             $response = (new PagSeguroCharge())->createCreditCard($order->transaction_id, [
                 'charges' => [
                     array_merge($ps_order, $charge)
                 ]
             ]);
-    
+
             if(isset($response['id'])) {
                 $order->update([
                     'payment_data' => json_encode($response)
@@ -390,18 +346,24 @@ class OrderController extends Controller
             $paid = false;
     
             if (isset($response['id'], $response['charges']) && is_array($response['charges'])) {
+                $bigger = null;
+                
                 foreach ($response['charges'] as $value) {
-                    if (isset($value['status'], $value['reference_id']) && $value['status'] === 'PAID' && $value['reference_id'] === $order->token) {
-                        $paid = true;
-                        break;
+                    $cur = new \DateTime($value['created_at']) ?? now();
+
+                    if($bigger == null || $cur > new \DateTime($bigger['created_at']) && $value['reference_id'] === $order->token) {
+                        $bigger = $value;
                     }
                 }
     
-                if ($paid) {
+                if (isset($bigger['id'])) {
+                    $confirmed = $bigger['status'] == "PAID";
+                    $paid = $confirmed;
+
                     $order->update([
-                        'status' => 'confirmed',
+                        'status' => $confirmed ? "confirmed" : "pending",
                         'payment_data' => json_encode($response),
-                        'payment_status' => 'paid'
+                        'payment_status' => $confirmed ? 'paid' : "failed"
                     ]);
                 }
             }
@@ -413,17 +375,269 @@ class OrderController extends Controller
                 'status' => $order->status
             ]);
         }catch(\Exception $e) {
-            return $this->error(/*"Ocorreu um erro no armazenamento dos dados de entrega. " .*/ $e->getMessage());
+            return $this->error("Ocorreu um erro no armazenamento dos dados de entrega. " . $e->getMessage());
         }
         return response()->json($request->all());
-    }    
+    }
 
-    public function publicKey() {
-        $publicKey = file_get_contents(storage_path('app/secure/pagseguro-keys/public-key.pem'));
+    /**
+     * Realiza a recriação da ordem expirada
+     * 
+     * @param \Illuminate\Http\Request $request
+     */
+    public function recreateOrder(Request $request) {
+        $id = $request->id ?? 0;
+        $token = $request->token ?? "";
+        $now = new \DateTime();
 
-        return response()->json([
-            'public_key' => $publicKey,
-            'created_at' => \Carbon\Carbon::createFromFormat('d/m/Y', '07/04/2026')->timestamp * 1000
+        $old_order = Order::where([
+            'id' => $id,
+            'token' => $token
+        ])
+        ->with('orderProducts','orderProducts.orderProductIngredients','shippingData')->first();
+
+        if(!$old_order)
+            return $this->error("Ordem não encontrada");
+
+        if($old_order->payment_status == 'paid')
+            return $this->error("A ordem já se encontra paga");
+
+        if($old_order->status == 'cancelled')
+            return $this->error("A ordem já está cancelada");
+
+        $expiration_date = new \DateTime($old_order->expiration_date);
+        $seconds = $now->getTimestamp() - $expiration_date->getTimestamp();
+        $minutes = $seconds / 60;
+
+        if($minutes >= 15) {
+            $old_order->update([
+                'status' => 'cancelled'
+            ]);
+
+            return $this->error('A ordem não pode mais ser recriada.');
+        }
+
+        do {
+            $new_token = 'ORD-' . now()->format('ymdHis') . '-' . Str::upper(Str::random(4));
+        } while (Order::where('token', $new_token)->exists());
+
+        $new_order = DB::transaction(function () use ($old_order, &$new_order) {
+            $new_token = 'ORD-' . now()->format('ymdHis') . '-' . Str::upper(Str::random(6));
+
+            $new_order = Order::create([
+                'status' => 'pending',
+                'payment_status' => 'pending',
+                'token' => $new_token,
+                'total' => $old_order->total
+            ]);
+
+            foreach ($old_order->orderProducts as $value) {
+
+                $data = collect($value)->only([
+                    'applied_discount_amount',
+                    'name',
+                    'original_price',
+                    'price',
+                    'product_id',
+                    'quantity'
+                ])->toArray();
+
+                $data['order_id'] = $new_order->id;
+
+                $order_product = OrderProduct::create($data);
+
+                foreach ($value->orderProductIngredients ?? [] as $i) {
+                    $ingredients[] = [
+                        "ingredient_id" => $i->ingredient_id,
+                        "is_extra" => $i->is_extra,
+                        "name" => $i->name,
+                        "price" => $i->price,
+                        "order_product_id" => $order_product->id
+                    ];
+                }
+            }
+
+            if (!empty($ingredients)) {
+                OrderProductIngredient::insert($ingredients);
+            }
+
+            $shipping = null;
+            if ($old_order->shippingData) {
+                $shipping = OrderShippingData::create(array_merge(
+                    collect($old_order->shippingData)->only([
+                        "cep","city","complement","document","email",
+                        "is_delivery","name","neighborhood","number",
+                        "phone","reference","street","uf"
+                    ])->toArray(),[
+                    'order_id' => $new_order->id
+                ]));
+            }
+
+            $response = $this->generateOrder($new_order, $shipping);
+
+            if(!isset($response['id'])) {
+                throw new \Exception("Erro ao gerar cobrança no PagSeguro");
+            }
+
+            $new_order->update([
+                'transaction_id' => $response['id'],
+                'payment_data' => json_encode($response)
+            ]);
+
+            $old_order->update([
+                'status' => 'cancelled'
+            ]);
+
+            return $new_order;
+        });
+
+        return $this->success([
+            'id' => $new_order->id,
+            'token' => $new_order->token,
+            'status' => $new_order->status,
+            'payment_status' => $new_order->payment_status,
+            'total' => $new_order->total,
+            'expiration_date' => $new_order->expiration_date,
+            'shipping' => collect($new_order->shippingData)->only([
+                'name', 'document', 'email', 'phone', 'cep', 'street', 'neighborhood', 
+                'complement', 'number', 'uf', 'city', 'reference', 'is_delivery'
+            ])->toArray()
+        ]);
+    }
+
+    /**
+     * Gera uma nova ordem para o cliente
+     * 
+     * @param $order
+     * @param $shipping
+     */
+    private function generateOrder($order, $shipping) {
+        $expiration_date = (new \DateTime())->modify('+20 minutes')->format('c');
+        
+        $ref = (new ReferenceBuilder())->build($order->token);
+        $qrcode = (new QRCodesBuilder())
+            ->setAmount($order->total)
+            ->setPixDueDate($expiration_date)
+            ->build();
+
+        $customer = (new CustomerBuilder())->build([
+            'name' => $shipping->name,
+            'tax_id' => $shipping->document,
+            'email' => $shipping->email
+        ]);
+
+        $shipping = (new AddressBuilder())->build([
+            'postal_code' => $shipping->cep,
+            'country' => "BRA",
+            'street' => $shipping->street,
+            'locality' => $shipping->neighborhood,
+            'complement' => $shipping->complement,
+            'number' => $shipping->number,
+            'region_code' => $shipping->uf,
+            'city' => $shipping->city,
+        ]);
+
+        $ps_order = (new OrderBuilder())
+            ->setReference($ref)
+            ->setCustomer($customer)
+            ->setShippingData($shipping);
+
+        foreach($order->orderProducts as $p) {
+            $ps_order->setItem([
+                'name' => $p['name'],
+                'quantity' => $p['quantity'],
+                'unit_amount' => $p['price']
+            ]);
+        }
+        
+        $ps_order = $ps_order->build();
+
+        $ps_order['qr_codes'] = [
+            $qrcode
+        ];
+
+        return (new PagSeguroOrder())->create($ps_order);
+    }
+
+    /**
+     * Realiza a checagem das parcelas direto no PagSeguro
+     * 
+     * @param Illuminate\Http\Request $request
+     * 
+     */
+    public function toCheckFees(Request $request) {
+        try{
+            $total = str_replace([',','.'],"", Order::where('id',$request->id ?? 0)->value('total') ?? 0);
+
+            $data = [
+                'payment_methods' => 'CREDIT_CARD',
+                'value' => $total,
+                'max_installments' => 4,
+                'max_installments_no_interest' => 3,
+                'credit_card_bin' => $request->bin ?? '',
+            ];
+    
+            $response = (new PagSeguroCharge())->checkFees($data);
+    
+            if(empty($response['payment_methods']['credit_card'] ?? [])) {
+                return $this->error("Ocorreu um erro na busca dos dados de parcelamento");
+            }        
+    
+            $card = reset($response['payment_methods']['credit_card']);
+    
+            if(empty($card) || empty($card['installment_plans'])) {
+                return $this->error("Ocorreu um erro na busca dos dados de parcelamento");
+            }
+                
+            $plans = $card['installment_plans'] ?? [];
+                
+            if(empty($plans) || !is_array($plans)) {
+                return $this->error("Ocorreu um erro na busca dos dados de parcelamento");
+            }
+    
+            $installments = [];
+            foreach($plans as $value) {
+                $installment_total = $value['amount']['value'] ?? $value['installment_value'] * $value['installments'];
+                $installments[] = [
+                    'installment' => $value['installments'],
+                    'installment_value' => $value['installment_value'] / 100,
+                    'interest_free' => $value['interest_free'],
+                    'total' => $installment_total / 100,
+                    'interest' => [
+                        'value' => abs($total - $installment_total) / 100
+                    ]
+                ];
+            }
+            
+            return $this->success([
+                'installments' => $installments
+            ]);
+        }catch(\Exception $ex) {
+            return $this->success([
+                'installments' => [],
+                'error' => $ex->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Gera a chave pública do pagseguro
+     * 
+     * @return mixed
+     */
+    public function getPublicKey() {
+        $public_key = "";
+        
+        try{
+            $response = (new PagSeguroRequest())->createPublicKey();
+            
+            $public_key = !isset($response['public_key']) ? "error" : $response['public_key'];
+        }catch(\Exception $e){
+            $public_key = 'error';
+        }
+
+        return $this->success([
+            'public_key' => $public_key
         ]);
     }
 }

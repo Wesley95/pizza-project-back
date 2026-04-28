@@ -35,6 +35,15 @@ class OrderShippingData extends Model
 
     public $timestamps = false;
 
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'is_delivery' => 'boolean'
+    ];
+
     public function order() {
         return $this->hasOne(Order::class, 'order_id','id');
     }

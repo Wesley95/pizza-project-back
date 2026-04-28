@@ -24,25 +24,18 @@ class PagSeguroRequest extends PagSeguroClient {
         ]);
     }
 
-    public function teste()
-    {
-        $client = new \GuzzleHttp\Client();
-
-        $client_id = config('pagseguro.client_id');
-        $client_secret = config('pagseguro.client_secret');
-
-        $response = $client->post('https://sandbox.api.pagseguro.com/oauth2/token', [
-            'headers' => [
-                'Authorization' => 'Basic ' . base64_encode($client_id . ':' . $client_secret),
-                'Accept' => 'application/json',
-                'Content-Type' => 'application/json',
-            ],
-            'body' => json_encode([
-                'grant_type' => 'client_credentials',
-                'scope' => 'create.certificate orders.read orders.write',
-            ]),
+    /**
+     * Função responsável por criar uma public key
+     * 
+     * @return mixed
+     */
+    public function createPublicKey(){
+        return $this->request($this->base_url . "/public-keys",'POST',[
+            'type' => 'card'
+        ],[
+            'Accept: application/json',
+            'Authorization: Bearer ' . $this->token,
+            'Content-type: application/json',
         ]);
-
-        return json_decode($response->getBody(), true);
     }
 }
