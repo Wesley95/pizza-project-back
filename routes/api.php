@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\IngredientController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\CategoryController as PublicCategoryController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\OrderController;
 use Illuminate\Http\Request;
@@ -38,29 +39,29 @@ Route::group(['as' => 'admin', 'prefix' => 'admin'], function(){
 
         Route::group(['as' => 'category','prefix' => 'category'], function() {
             Route::get('/', [CategoryController::class, 'paginate'])->name('get');
-            Route::get('/{id}', [CategoryController::class, 'show'])->whereNumber('id')->name('add');
-            Route::post('/add', [CategoryController::class, 'store'])->name('edit');
-            Route::post('/edit', [CategoryController::class, "edit"])->name('show');
+            Route::get('/{id}', [CategoryController::class, 'show'])->whereNumber('id')->name('show');
+            Route::post('/add', [CategoryController::class, 'store'])->name('add');
+            Route::post('/edit', [CategoryController::class, "edit"])->name('edit');
             Route::post('/delete', [CategoryController::class, "destroy"])->name('destroy');
             Route::post('/change-status', [CategoryController::class, "changeStatus"])->name('change-status');
         });
 
         Route::group(['as' => 'ingredient','prefix' => 'ingredient'], function() {
             Route::get('/', [IngredientController::class, 'paginate'])->name('get');
-            Route::get('/{id}', [IngredientController::class, 'show'])->whereNumber('id')->name('add');
-            Route::post('/add', [IngredientController::class, 'store'])->name('edit');
-            Route::post('/edit', [IngredientController::class, "edit"])->name('show');
-            Route::post('/change-status', [IngredientController::class, "changeStatus"])->name('destroy');
-            Route::post('/import', [IngredientController::class, "import"])->name('change-status');
+            Route::get('/{id}', [IngredientController::class, 'show'])->whereNumber('id')->name('show');
+            Route::post('/add', [IngredientController::class, 'store'])->name('add');
+            Route::post('/edit', [IngredientController::class, "edit"])->name('edit');
+            Route::post('/change-status', [IngredientController::class, "changeStatus"])->name('change-status');
+            Route::post('/import', [IngredientController::class, "import"])->name('import');
         });
 
         Route::group(['as' => 'product','prefix' => 'product'], function() {
             Route::get('/', [ProductController::class, 'paginate'])->name('get');
-            Route::get('/{id}', [ProductController::class, 'show'])->whereNumber('id')->name('add');
-            Route::post('/add', [ProductController::class, 'store'])->name('edit');
-            Route::post('/edit', [ProductController::class, "edit"])->name('show');
-            Route::post('/change-status', [ProductController::class, "changeStatus"])->name('destroy');
-            Route::post('/import', [ProductController::class, "import"])->name('change-status');
+            Route::get('/{id}', [ProductController::class, 'show'])->whereNumber('id')->name('edit');
+            Route::post('/add', [ProductController::class, 'store'])->name('add');
+            Route::post('/edit', [ProductController::class, "edit"])->name('edit');
+            Route::post('/change-status', [ProductController::class, "changeStatus"])->name('change-status');
+            Route::post('/import', [ProductController::class, "import"])->name('import');
         });
 
         Route::get('/check-token', function(Request $request) {
@@ -69,27 +70,33 @@ Route::group(['as' => 'admin', 'prefix' => 'admin'], function(){
     });
 });
 
-Route::group(['as' => 'order','prefix' => 'order'], function() {
-    Route::get('/', [AdminOrderController::class, 'paginate']);
-    Route::get('/{id}', [AdminOrderController::class, 'show'])->whereNumber('id');
+Route::prefix('')->group(function() {
+    Route::group(['as' => 'order','prefix' => 'order'], function() {
+        Route::get('/', [AdminOrderController::class, 'paginate']);
+        Route::get('/{id}', [AdminOrderController::class, 'show'])->whereNumber('id');
+        
+        // Route::post('/change-status', [AdminOrderController::class, "changeStatus"]);
+    });
     
-    // Route::post('/change-status', [AdminOrderController::class, "changeStatus"]);
+    Route::group(['as' => 'menu','prefix' => 'menu'], function() {
+        Route::get('/', [MenuController::class, 'menu'])->name('menu');
+        Route::get('/{id}', [MenuController::class, 'show'])->whereNumber('id')->name('show');
+        Route::get('/check-availability', [MenuController::class, 'checkAvailability'])->name('checkAvailability');
+        Route::get('/update-cart', [MenuController::class, 'updateCartValues'])->name('updateCartValues');
+    });
+    
+    Route::group(['as' => 'order','prefix' => 'order'], function() {
+        Route::get('/public-key', [OrderController::class, 'getPublicKey'])->name('public-key');
+        Route::get('/check-fees', [OrderController::class, 'toCheckFees'])->name('check-fees');
+    
+        Route::post('/', [OrderController::class, 'create'])->name('create');
+        Route::get('/{id}', [OrderController::class, 'show'])->whereNumber('id')->name('show');
+        Route::post('/{id}/shipping-data', [OrderController::class, 'setShippingData'])->whereNumber('id')->name('shipping-data');
+        Route::post('/{id}/payment', [OrderController::class, 'setPayment'])->whereNumber('id')->name('payment');
+        Route::post('/{id}/recreate-order', [OrderController::class, 'recreateOrder'])->whereNumber('id')->name('recreate-pix');
+    });
+
+    Route::group(['as' => 'category', 'prefix' => 'category'], function() {
+        Route::get('/', [PublicCategoryController::class, 'get'])->name('get');
+    });
 });
-
-Route::group(['as' => 'menu','prefix' => 'menu'], function() {
-    Route::get('/', [MenuController::class, 'menu'])->name('menu');
-    Route::get('/{id}', [MenuController::class, 'show'])->whereNumber('id')->name('show');
-    Route::get('/check-availability', [MenuController::class, 'checkAvailability'])->name('checkAvailability');
-    Route::get('/update-cart', [MenuController::class, 'updateCartValues'])->name('updateCartValues');
-});
-
-Route::group(['as' => 'order','prefix' => 'order'], function() {
-    Route::get('/public-key', [OrderController::class, 'getPublicKey'])->name('public-key');
-    Route::get('/check-fees', [OrderController::class, 'toCheckFees'])->name('check-fees');
-
-    Route::post('/', [OrderController::class, 'create'])->name('create');
-    Route::get('/{id}', [OrderController::class, 'show'])->whereNumber('id')->name('show');
-    Route::post('/{id}/shipping-data', [OrderController::class, 'setShippingData'])->whereNumber('id')->name('shipping-data');
-    Route::post('/{id}/payment', [OrderController::class, 'setPayment'])->whereNumber('id')->name('payment');
-    Route::post('/{id}/recreate-order', [OrderController::class, 'recreateOrder'])->whereNumber('id')->name('recreate-pix');
-}); 
