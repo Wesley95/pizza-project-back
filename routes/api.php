@@ -57,7 +57,7 @@ Route::group(['as' => 'admin', 'prefix' => 'admin'], function(){
 
         Route::group(['as' => 'product','prefix' => 'product'], function() {
             Route::get('/', [ProductController::class, 'paginate'])->name('get');
-            Route::get('/{id}', [ProductController::class, 'show'])->whereNumber('id')->name('edit');
+            Route::get('/{id}', [ProductController::class, 'show'])->whereNumber('id')->name('show');
             Route::post('/add', [ProductController::class, 'store'])->name('add');
             Route::post('/edit', [ProductController::class, "edit"])->name('edit');
             Route::post('/change-status', [ProductController::class, "changeStatus"])->name('change-status');
