@@ -2,23 +2,19 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CategoryRequest;
-use App\Http\Requests\Admin\UserRequest;
+use App\Http\Services\Admin\CategoryService;
 use App\Models\Category;
 use App\Models\Repositories\CategoryRepository;
-use App\Models\Repositories\UserRepository;
 use App\Traits\ApiResponse;
-use Illuminate\Support\Facades\DB;
 
 class CategoryController extends Controller
 {
     use ApiResponse;
 
-    private $category;
+    private CategoryRepository $category;
 
     public function __construct(CategoryRepository $categoryRepo) {
         $this->category = $categoryRepo;
@@ -27,13 +23,14 @@ class CategoryController extends Controller
     /**
      * Realiza o cadastro de um novo usuário administrador
      * @param \App\Http\Requests\Admin\CategoryRequest $request
+     * @param \App\Http\Services\Admin\CategoryService $categoryService
      * 
      * @return mixed
      */
-    public function store(CategoryRequest $request)
+    public function store(CategoryRequest $request, CategoryService $categoryService)
     {
         try{
-            Category::create([
+            $categoryService->create([
                 'name' => $request->name,
                 'color' => $request->color                
             ]);
@@ -47,29 +44,15 @@ class CategoryController extends Controller
     /**
      * Realiza a edição do cadastro de um usuário
      * @param \App\Http\Requests\Admin\CategoryRequest $request
+     * @param \App\Http\Services\Admin\CategoryService $categoryService
      * 
      * @return mixed
      */
-    public function edit(CategoryRequest $request)
+    public function edit(CategoryRequest $request, CategoryService $categoryService)
     {
-        try{
-            $category = $request->id ? Category::find($request->id) : null;
+        $categoryService->update($request->id, $request->only(['name', 'color']));
 
-            if(!$category) {
-                return $this->notFound('Categoria não encontrada');
-            }
-
-            $data = [
-                'name' => $request->name,
-                'color' => $request->color
-            ];
-
-            $category->update($data);
-
-            return $this->success("Categoria editada com sucesso");
-        }catch(\Exception $e) {
-            return $this->error("Erro de edição: " . $e->getMessage());
-        }
+        return $this->success("Categoria editada com sucesso");
     }
 
     /**
@@ -79,9 +62,10 @@ class CategoryController extends Controller
      * 
      * @return mixed
      */
-    public function show($id) {
+    public function show(string|int $id)
+    {
         try{
-            return Category::find($id);
+            return $this->success(Category::findOrFail($id));
         }catch(\Exception $e) {
             return $this->error("Erro de captura da categoria: " . $e->getMessage());
         }
@@ -91,18 +75,14 @@ class CategoryController extends Controller
      * Realiza o softdelete da categoria
      * 
      * @param \Illuminate\Http\Request $request
+     * @param \App\Http\Services\Admin\CategoryService $categoryService
      * 
      * @return mixed
      */
-    public function destroy(Request $request) {
+    public function destroy(Request $request, CategoryService $categoryService) {
         try{
-
-            $ids = $request->ids;
-
-            Category::whereIn('id', $ids)
-                ->delete();
-
-                return $this->success();
+            $categoryService->delete($request->ids ?? []);
+            return $this->success();
         } catch(\Exception $e) {
             return $this->error("Erro de exclusão: " . $e->getMessage());
         }
@@ -119,23 +99,21 @@ class CategoryController extends Controller
             isset($request->page) ? 
             $this->category->search($request->except('_token'))->paginate($request->per_page ?? 10) : 
             Category::get();
-        return response()->json($categories);
+
+        return $this->success($categories);
     }
 
     /**
      * Realiza a atualização dos status baseado nos ids e status enviados
      * 
      * @param \Illuminate\Http\Request $request
+     * @param \App\Http\Services\Admin\CategoryService $categoryService
      */
-    public function changeStatus(Request $request) {
+    public function changeStatus(Request $request, CategoryService $categoryService) {
         try{
-            $ids = $request->ids;
+            $ids = $request->ids ?? [];
+            $categoryService->changeStatus($ids ?? []);
 
-            Category::whereIn('id', $ids)
-                ->update([
-                    'status' => DB::raw('CASE WHEN status = 1 THEN 0 ELSE 1 END')
-                ]);
-            
             return $this->success($ids);
         }catch(\Exception $e) {
             return $this->error("Erro de atualização: " . $e->getMessage());

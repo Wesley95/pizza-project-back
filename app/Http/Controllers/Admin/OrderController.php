@@ -4,22 +4,15 @@ namespace App\Http\Controllers\Admin;
 
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\ProductRequest;
-use App\Models\Product;
+use App\Models\Order;
 use App\Models\Repositories\OrderRepository;
-use App\Models\Repositories\ProductRepository;
 use App\Traits\ApiResponse;
-use Dotenv\Util\Str as UtilStr;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use Maatwebsite\Excel\Facades\Excel;
 
 class OrderController extends Controller
 {
     use ApiResponse;
 
-    private $order;
+    private OrderRepository $order;
     private string $image_path = 'uploads' . DIRECTORY_SEPARATOR . 'products';
 
     public function __construct(OrderRepository $orderRepository) {
@@ -33,17 +26,16 @@ class OrderController extends Controller
      * @return mixed
      */
     public function paginate(Request $request) {
-        $orders = $this->order->ordersJoin()->toArray();
+        $countByStatus = $this->order->getCountByStatus();
+        $orders = $this->order->ordersJoin($request)->toArray();
         $formattedOrders = [];
 
-        foreach ($orders as $key => $value) {
-            // if($value['id'] == 26) {
-            //     dd($value);
-            // }
+        foreach ($orders as $value) {
             $addressFormatted = "";
             $isDelivery = false;
             $hasShippingData = !empty($value['shipping_data']);
-            $data = collect($value)->only("id", "created_at", "status", "payment_status","total","token")->toArray();
+            $data = collect($value)->only(["id", "created_at", "status", "payment_status", "total", "token"])->toArray();
+            
             /*
             |--------------------------------------------------------------------------
             | Endereço
@@ -86,7 +78,7 @@ class OrderController extends Controller
             if(!empty($value['order_products'])) {
                 foreach($value['order_products'] as $p) {
                     $cur_image = $p['product']['image'] ?? '';
-                    $cur_p = collect($p)->only("name", "original_price", "applied_discount_amount", "price", "quantity", "product_id", "order_id")->toArray();
+                    $cur_p = collect($p)->only(["name", "original_price", "applied_discount_amount", "price", "quantity", "product_id", "order_id"])->toArray();
 
                     $cur_p['image'] = "";
                     $cur_p['ingredients'] = array_map(function($i) {
@@ -117,25 +109,28 @@ class OrderController extends Controller
             $formattedOrders[] = $data;
         }
 
-        // return response()->json(array_values(array_filter($formattedOrders, fn ($e) => $e['id'] == 26)));
-        return response()->json($formattedOrders);
+        return $this->success([
+            'orders' => $formattedOrders,
+            'grouped' => $countByStatus
+        ]);
     }
 
     /**
-     * Realiza a atualização dos status baseado nos ids e status enviados
+     * Realiza a atualização do status de uma específica ordem
      * 
      * @param \Illuminate\Http\Request $request
      */
     public function changeStatus(Request $request) {
         try{
-            $ids = $request->ids;
+            $order = Order::findOrFail($request->id ?? 0);
 
-            // Product::whereIn('id', $ids)
-            //     ->update([
-            //         'status' => DB::raw('CASE WHEN status = 1 THEN 0 ELSE 1 END')
-            //     ]);
+            $order->update([
+                'status' => $request->status
+            ]);
             
-            return $this->success($ids);
+            return $this->success([
+                'status' => $request->status
+            ]);
         }catch(\Exception $e) {
             return $this->error("Erro de atualização: " . $e->getMessage());
         }

@@ -64,6 +64,13 @@ Route::group(['as' => 'admin', 'prefix' => 'admin'], function(){
             Route::post('/import', [ProductController::class, "import"])->name('import');
         });
 
+        Route::group(['as' => 'order','prefix' => 'order'], function() {
+            Route::get('/', [AdminOrderController::class, 'paginate']);
+            Route::get('/{id}', [AdminOrderController::class, 'show'])->whereNumber('id');
+            
+            Route::post('/change-status', [AdminOrderController::class, "changeStatus"]);
+        });
+
         Route::get('/check-token', function(Request $request) {
             return $request->user();
         })->name('check-token');
@@ -71,12 +78,7 @@ Route::group(['as' => 'admin', 'prefix' => 'admin'], function(){
 });
 
 Route::prefix('')->group(function() {
-    Route::group(['as' => 'order','prefix' => 'order'], function() {
-        Route::get('/', [AdminOrderController::class, 'paginate']);
-        Route::get('/{id}', [AdminOrderController::class, 'show'])->whereNumber('id');
-        
-        // Route::post('/change-status', [AdminOrderController::class, "changeStatus"]);
-    });
+
     
     Route::group(['as' => 'menu','prefix' => 'menu'], function() {
         Route::get('/', [MenuController::class, 'menu'])->name('menu');

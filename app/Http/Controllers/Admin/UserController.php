@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UserRequest;
+use App\Http\Services\Admin\UserService;
 use App\Models\Repositories\UserRepository;
 use App\Traits\ApiResponse;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,7 @@ class UserController extends Controller
 {
     use ApiResponse;
 
-    private $user;
+    private UserRepository $user;
 
     public function __construct(UserRepository $userRepo) {
         $this->user = $userRepo;
@@ -23,20 +24,22 @@ class UserController extends Controller
 
     /**
      * Realiza o cadastro de um novo usuário administrador
+     * 
      * @param \App\Http\Requests\Admin\UserRequest $request
+     * @param \App\Http\Services\Admin\UserService $userService
      * 
      * @return mixed
      */
-    public function store(UserRequest $request)
+    public function store(UserRequest $request, UserService $userService)
     {
         try{
-            User::create([
+            $user = $userService->create([
                 'name' => $request->nome,
                 'email' => $request->email,
                 'password' => Hash::make($request->senha)
             ]);
 
-            return $this->created();
+            return $this->created($user);
         }catch(\Exception $e) {
             return $this->error("Erro de cadastro: " . $e->getMessage());
         }
@@ -44,29 +47,22 @@ class UserController extends Controller
 
     /**
      * Realiza a edição do cadastro de um usuário
+     * 
      * @param \App\Http\Requests\Admin\UserRequest $request
+     * @param \App\Http\Services\Admin\UserService $userService 
      * 
      * @return mixed
      */
-    public function edit(UserRequest $request)
+    public function edit(UserRequest $request, UserService $userService)
     {
         try{
-            $user = $request->id ? User::find($request->id) : null;
-
-            if(!$user) {
-                return $this->notFound('Usuário não encontrado');
-            }
-
-            $data = [
+            $userService->update($request->id ?? 0, [
                 'name' => $request->nome,
-                'email' => $request->email
-            ];
-
-            if($request->senha) {
-                $data['password'] = Hash::make($request->senha);
-            }
-
-            $user->update($data);
+                'email' => $request->email,
+                ...($request->senha ? [
+                    'password' => Hash::make($request->senha)
+                ] : [])
+            ]);
 
             return $this->success("Usuário editado com sucesso");
         }catch(\Exception $e) {
@@ -83,7 +79,7 @@ class UserController extends Controller
      */
     public function show($id) {
         try{
-            return User::find($id);
+            return $this->success(User::findOrFail($id));
         }catch(\Exception $e) {
             return $this->error("Erro de captura de cliente: " . $e->getMessage());
         }
@@ -104,7 +100,7 @@ class UserController extends Controller
             User::whereIn('id', $ids)
                 ->delete();
 
-                return $this->success();
+            return $this->success();
         } catch(\Exception $e) {
             return $this->error("Erro de exclusão: " . $e->getMessage());
         }
@@ -112,28 +108,27 @@ class UserController extends Controller
 
     /**
      * Realiza a captura e paginação dos usuários do sistema
+     * 
      * @param \Illuminate\Http\Request $request
      * 
      * @return mixed
      */
     public function paginate(Request $request) {
         $users = $this->user->search($request->except('_token'))->paginate($request->per_page ?? 10);
-        return response()->json($users);
+        return $this->success($users);
     }
 
     /**
      * Realiza a atualização dos status baseado nos ids e status enviados
      * 
      * @param \Illuminate\Http\Request $request
+     * @param \App\Http\Services\Admin\UserService $userService 
+     * 
      */
-    public function changeStatus(Request $request) {
+    public function changeStatus(Request $request, UserService $userService) {
         try{
             $ids = $request->ids;
-
-            User::whereIn('id', $ids)
-                ->update([
-                    'status' => DB::raw('CASE WHEN status = 1 THEN 0 ELSE 1 END')
-                ]);
+            $userService->changeStatus($ids);
             
             return $this->success($ids);
         }catch(\Exception $e) {

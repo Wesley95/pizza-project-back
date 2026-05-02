@@ -2,10 +2,8 @@
 
 namespace App\Imports;
 
-use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithValidation;
-use Illuminate\Validation\Rule;
 use App\Models\Ingredient;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;

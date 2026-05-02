@@ -5,19 +5,17 @@ namespace App\Http\Controllers\Admin;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\IngredientRequest;
-use App\Imports\IngredientsImport;
+use App\Http\Services\Admin\IngredientService;
 use App\Models\Ingredient;
 use App\Models\Repositories\IngredientRepository;
 use App\Traits\ApiResponse;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Maatwebsite\Excel\Facades\Excel;
 
 class IngredientController extends Controller
 {
     use ApiResponse;
 
-    private $ingredient;
+    private IngredientRepository $ingredient;
 
     public function __construct(IngredientRepository $ingredientRepository) {
         $this->ingredient = $ingredientRepository;
@@ -25,14 +23,16 @@ class IngredientController extends Controller
 
     /**
      * Realiza o cadastro de um novo ingrediente
+     * 
      * @param \App\Http\Requests\Admin\IngredientRequest $request
+     * @param \App\Http\Services\Admin\IngredientService $ingredientService
      * 
      * @return mixed
      */
-    public function store(IngredientRequest $request)
+    public function store(IngredientRequest $request, IngredientService $ingredientService)
     {
         try{
-            Ingredient::create([
+            $ingredientService->create([
                 'name' => $request->name,
                 'status' => $request->status,
                 'price' => $request->price,
@@ -49,28 +49,21 @@ class IngredientController extends Controller
     /**
      * Realiza a edição do cadastro de um ingrediente
      * @param \App\Http\Requests\Admin\IngredientRequest $request
+     * @param \App\Http\Services\Admin\IngredientService $ingredientService
      * 
      * @return mixed
      */
-    public function edit(IngredientRequest $request)
+    public function edit(IngredientRequest $request, IngredientService $ingredientService)
     {
         try{
-            $ingredient = $request->id ? Ingredient::find($request->id) : null;
-
-            if(!$ingredient) {
-                return $this->notFound('Ingrediente não encontrado');
-            }
-
-            $data = [
+            $ingredientService->update($request->id, [
                 'name' => $request->name,
                 'status' => $request->status,
                 'price' => $request->price,
                 'slug' => Str::slug($request->name),
                 'description' => $request->description
-            ];
-
-            $ingredient->update($data);
-
+            ]);
+            
             return $this->success("Ingrediente editado com sucesso");
         }catch(\Exception $e) {
             return $this->error("Erro de edição: " . $e->getMessage());
@@ -86,7 +79,7 @@ class IngredientController extends Controller
      */
     public function show($id) {
         try{
-            return Ingredient::find($id);
+            return $this->success(Ingredient::findOrFail($id));
         }catch(\Exception $e) {
             return $this->error("Erro de captura do ingrediente: " . $e->getMessage());
         }
@@ -104,52 +97,43 @@ class IngredientController extends Controller
             $this->ingredient->search($request->except('_token'))->paginate($request->per_page ?? 10) :
             Ingredient::get();
 
-        return response()->json($ingredients);
+        return $this->success($ingredients);
     }
 
     /**
      * Realiza a atualização dos status baseado nos ids e status enviados
      * 
      * @param \Illuminate\Http\Request $request
+     * @param \App\Http\Services\Admin\IngredientService $ingredientService
      */
-    public function changeStatus(Request $request) {
+    public function changeStatus(Request $request, $ingredientService) {
         try{
             $ids = $request->ids;
+            $ingredientService->changeStatus($ids);
 
-            Ingredient::whereIn('id', $ids)
-                ->update([
-                    'status' => DB::raw('CASE WHEN status = 1 THEN 0 ELSE 1 END')
-                ]);
-            
             return $this->success($ids);
         }catch(\Exception $e) {
             return $this->error("Erro de atualização: " . $e->getMessage());
         }
     }
 
-    public function import(Request $request) {
-        try {
-            Excel::import(new IngredientsImport, $request->file('file'));
+    /**
+     * Realiza a importação dos dados massivamente
+     * 
+     * @param \Illuminate\Http\Request $request
+     * @param \App\Http\Services\Admin\IngredientService $service
+     * 
+     * @return mixed
+     * 
+     */
+    public function import(Request $request, IngredientService $service)
+    {
+        $result = $service->import($request->file('file'));
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Importação realizada com sucesso!'
-            ]);
-        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
-            $errors = [];
-
-            foreach ($e->failures() as $failure) {
-                $errors[] = [
-                    'linha' => $failure->row(),
-                    'coluna' => $failure->attribute(),
-                    'erros' => $failure->errors(),
-                ];
-            }
-
-            return response()->json([
-                'success' => false,
-                'errors' => $errors
-            ], 422);
+        if (!$result['success']) {
+            return $this->error("Ocorreu um erro durante o processo de importação de ingredientes", 422);
         }
+
+        return $this->success($result);
     }
 }

@@ -35,15 +35,43 @@ class OrderRepository extends AbstractRepository {
         return $this->model;
     }
 
-    public function ordersJoin() {
+    /**
+     * Recupera os pedidos e filtra, baseado no request enviado
+     * 
+     * @param mixed $request
+     */
+    public function ordersJoin($request) {
+        $this->model = $this->model
+            ->select('id', 'created_at', 'status', 'payment_status', 'total', 'token')
+            ->with([
+                'shippingData',
+                'orderProducts',
+                'orderProducts.product:id,image',
+                'orderProducts.orderProductIngredients'
+            ]);
+
+        $status = $request->status ?? "";
+
+        if($status && $status !== 'all') {
+            switch($status) {
+                case "actived":
+                    $this->model = $this->model->whereIn('status', [
+                        'pending','confirmed','preparing','ready','out_for_delivery'
+                    ]);
+                    break;
+                default:
+                    $this->model = $this->model->where('status', $status);
+                break;
+            }
+        }
+            
+        return $this->model->get();
+    }
+
+    public function getCountByStatus() {
         return $this->model
-        ->select('id', 'created_at', 'status', 'payment_status', 'total', 'token')
-        ->with([
-            'shippingData',
-            'orderProducts',
-            'orderProducts.product:id,image',
-            'orderProducts.orderProductIngredients'
-        ])
-        ->get();
+            ->select('status', DB::raw('COUNT(*) as total'))
+            ->groupBy('status')
+            ->get();
     }
 }

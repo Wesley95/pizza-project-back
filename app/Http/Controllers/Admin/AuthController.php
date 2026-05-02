@@ -2,27 +2,35 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\Controller;
+use App\Http\Services\Admin\LoginService;
+use App\Traits\ApiResponse;
 
 class AuthController extends Controller
 {
-    public function login(Request $request)
-    {
-        $user = User::where('email', $request->email)->first();
+    use ApiResponse;
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+    /**
+     * Função responsável por validar os dados de login que foram enviados
+     * 
+     * @param \Illuminate\Http\Request $request
+     * @param \App\Http\Services\Admin\LoginService $loginService
+     * 
+     * @return mixed
+     */
+    public function login(Request $request, LoginService $loginService)
+    {
+        try {
+            $token = $loginService->login($request->email, $request->password);
+    
+            return $this->success([
+                'token' => $token
+            ]);
+        }catch(\Exception $e) {
             return response()->json([
-                'message' => 'Credenciais inválidas'
+                'message' => 'Não foi possível realizar a autenticação'
             ], 401);
         }
-
-        $token = $user->createToken('api-token')->plainTextToken;
-
-        return response()->json([
-            'token' => $token
-        ]);
     }
 }

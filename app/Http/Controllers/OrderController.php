@@ -9,7 +9,6 @@ use App\Custom\PagSeguro\Builders\CustomerBuilder;
 use App\Custom\PagSeguro\Builders\OrderBuilder;
 use App\Custom\PagSeguro\Builders\QRCodesBuilder;
 use App\Custom\PagSeguro\Builders\ReferenceBuilder;
-use App\Custom\PagSeguro\Core\PagSeguroClient;
 use App\Custom\PagSeguro\Core\PagSeguroRequest;
 use App\Custom\PagSeguro\Services\PagSeguroCharge;
 use App\Custom\PagSeguro\Services\PagSeguroOrder;
@@ -23,7 +22,6 @@ use App\Models\Repositories\ProductRepository;
 use App\Traits\ApiResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use App\Custom\PagSeguroApi;
 use App\Http\Requests\PaymentRequest;
 use App\Http\Requests\ShippingDataRequest;
 use App\Models\OrderShippingData;
@@ -32,7 +30,7 @@ class OrderController extends Controller
 {
     use ApiResponse;
 
-    private $product;
+    private ProductRepository $product;
     private string $image_path = 'uploads' . DIRECTORY_SEPARATOR . 'products';
 
     public function __construct(ProductRepository $productRepository) {
@@ -132,7 +130,7 @@ class OrderController extends Controller
         try{
             $order = DB::transaction(function () use ($request) {
                 $cart = $request->all();
-                $product_ids = array_map(fn($e) => $e['productId'] , $cart);
+                $product_ids = array_map(fn($e) => $e['productId'] ?? 0 , $cart);
         
                 $originalProducts = $this->product->getActivedProducts($product_ids)->keyBy(fn($item) => 'id-' . $item['id']);
         
@@ -236,7 +234,8 @@ class OrderController extends Controller
     /**
      * Realiza o armazenamento dos dados da entrega
      * 
-     * @param App\Http\Requests\ShippingDataRequest $request
+     * @param \App\Http\Requests\ShippingDataRequest $request
+     * @param mixed $id
      */
     public function setShippingData(ShippingDataRequest $request, $id) {
         try{
@@ -294,7 +293,7 @@ class OrderController extends Controller
     /**
      * Realiza o pagamento via cartão de crédito
      * 
-     * @param App\Http\Requests\PaymentRequest $request
+     * @param \App\Http\Requests\PaymentRequest $request
      * @param int $id
      */
     public function setPayment(PaymentRequest $request, $id) {
@@ -377,7 +376,6 @@ class OrderController extends Controller
         }catch(\Exception $e) {
             return $this->error("Ocorreu um erro no armazenamento dos dados de entrega. " . $e->getMessage());
         }
-        return response()->json($request->all());
     }
 
     /**
