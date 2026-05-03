@@ -29,7 +29,7 @@ Route::group(['as' => 'admin', 'prefix' => 'admin'], function(){
 
     Route::middleware('auth:sanctum')->group(function(){
         Route::group(['as' => 'users', 'prefix' => 'users'], function() {
-            Route::get('/', [UserController::class, "paginate"])->name('get');
+            Route::get('/', [UserController::class, "get"])->name('get');
             Route::post('/add', [UserController::class, "store"])->name('add');
             Route::post('/edit', [UserController::class, "edit"])->name('edit');
             Route::get('/{id}', [UserController::class, "show"])->whereNumber('id')->name('show');
@@ -38,7 +38,7 @@ Route::group(['as' => 'admin', 'prefix' => 'admin'], function(){
         });
 
         Route::group(['as' => 'category','prefix' => 'category'], function() {
-            Route::get('/', [CategoryController::class, 'paginate'])->name('get');
+            Route::get('/', [CategoryController::class, 'get'])->name('get');
             Route::get('/{id}', [CategoryController::class, 'show'])->whereNumber('id')->name('show');
             Route::post('/add', [CategoryController::class, 'store'])->name('add');
             Route::post('/edit', [CategoryController::class, "edit"])->name('edit');
@@ -47,7 +47,7 @@ Route::group(['as' => 'admin', 'prefix' => 'admin'], function(){
         });
 
         Route::group(['as' => 'ingredient','prefix' => 'ingredient'], function() {
-            Route::get('/', [IngredientController::class, 'paginate'])->name('get');
+            Route::get('/', [IngredientController::class, 'get'])->name('get');
             Route::get('/{id}', [IngredientController::class, 'show'])->whereNumber('id')->name('show');
             Route::post('/add', [IngredientController::class, 'store'])->name('add');
             Route::post('/edit', [IngredientController::class, "edit"])->name('edit');
@@ -56,7 +56,7 @@ Route::group(['as' => 'admin', 'prefix' => 'admin'], function(){
         });
 
         Route::group(['as' => 'product','prefix' => 'product'], function() {
-            Route::get('/', [ProductController::class, 'paginate'])->name('get');
+            Route::get('/', [ProductController::class, 'get'])->name('get');
             Route::get('/{id}', [ProductController::class, 'show'])->whereNumber('id')->name('show');
             Route::post('/add', [ProductController::class, 'store'])->name('add');
             Route::post('/edit', [ProductController::class, "edit"])->name('edit');
@@ -65,7 +65,7 @@ Route::group(['as' => 'admin', 'prefix' => 'admin'], function(){
         });
 
         Route::group(['as' => 'order','prefix' => 'order'], function() {
-            Route::get('/', [AdminOrderController::class, 'paginate']);
+            Route::get('/', [AdminOrderController::class, 'get']);
             Route::get('/{id}', [AdminOrderController::class, 'show'])->whereNumber('id');
             
             Route::post('/change-status', [AdminOrderController::class, "changeStatus"]);

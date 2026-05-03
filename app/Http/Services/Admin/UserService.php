@@ -42,7 +42,7 @@ class UserService {
      */
     public function delete(array $ids = []) : void 
     {
-        user::whereIn('id', $ids)
+        User::whereIn('id', $ids)
             ->delete();
     }
 

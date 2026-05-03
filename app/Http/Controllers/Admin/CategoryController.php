@@ -94,7 +94,7 @@ class CategoryController extends Controller
      * 
      * @return mixed
      */
-    public function paginate(Request $request) {
+    public function get(Request $request) {
         $categories = 
             isset($request->page) ? 
             $this->category->search($request->except('_token'))->paginate($request->per_page ?? 10) : 

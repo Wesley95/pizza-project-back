@@ -113,7 +113,7 @@ class UserController extends Controller
      * 
      * @return mixed
      */
-    public function paginate(Request $request) {
+    public function get(Request $request) {
         $users = $this->user->search($request->except('_token'))->paginate($request->per_page ?? 10);
         return $this->success($users);
     }

@@ -81,7 +81,7 @@ class ProductController extends Controller
      * 
      * @return mixed
      */
-    public function paginate(Request $request) {
+    public function get(Request $request) {
         $products = $this->product->search($request->except('_token'))->paginate($request->per_page ?? 10);
 
         foreach($products as $value)

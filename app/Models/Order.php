@@ -40,7 +40,7 @@ class Order extends Model
     protected static function booted()
     {
         static::creating(function ($model) {
-            $model->expiration_date = now()->addMinutes(20);
+            $model->expiration_date = now()->addMinutes(10);
         });
     }
 

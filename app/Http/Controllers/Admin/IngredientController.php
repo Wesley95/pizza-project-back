@@ -91,7 +91,7 @@ class IngredientController extends Controller
      * 
      * @return mixed
      */
-    public function paginate(Request $request) {
+    public function get(Request $request) {
         $ingredients = 
             isset($request->page) ? 
             $this->ingredient->search($request->except('_token'))->paginate($request->per_page ?? 10) :
