@@ -65,10 +65,10 @@ Route::group(['as' => 'admin', 'prefix' => 'admin'], function(){
         });
 
         Route::group(['as' => 'order','prefix' => 'order'], function() {
-            Route::get('/', [AdminOrderController::class, 'get']);
-            Route::get('/{id}', [AdminOrderController::class, 'show'])->whereNumber('id');
+            Route::get('/', [AdminOrderController::class, 'get'])->name('get');
+            Route::get('/{id}', [AdminOrderController::class, 'show'])->whereNumber('id')->name('show');
             
-            Route::post('/change-status', [AdminOrderController::class, "changeStatus"]);
+            Route::post('/change-status', [AdminOrderController::class, "changeStatus"])->name('change-status');
         });
 
         Route::get('/check-token', function(Request $request) {
@@ -78,8 +78,6 @@ Route::group(['as' => 'admin', 'prefix' => 'admin'], function(){
 });
 
 Route::prefix('')->group(function() {
-
-    
     Route::group(['as' => 'menu','prefix' => 'menu'], function() {
         Route::get('/', [MenuController::class, 'menu'])->name('menu');
         Route::get('/{id}', [MenuController::class, 'show'])->whereNumber('id')->name('show');
