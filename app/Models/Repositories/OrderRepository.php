@@ -68,6 +68,14 @@ class OrderRepository extends AbstractRepository {
         return $query->get();
     }
 
+    /**
+     * Captura os status agrupados, baseando-se no filtro enviado
+     * 
+     * @param array $filter
+     * 
+     * @return mixed
+     * 
+     */
     public function getCountByStatus(array $filter) {
         $query = $this->model->select('status', DB::raw('COUNT(*) as total'));
 
@@ -77,6 +85,14 @@ class OrderRepository extends AbstractRepository {
         return $query->groupBy('status')->get();
     }
 
+    /**
+     * Realiza o filtro dos dados enviados
+     * 
+     * @param array $data
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * 
+     * @return mixed
+     */
     private function filter(array $data, \Illuminate\Database\Eloquent\Builder $query) {
         $status = $data['status'] ?? "";
         $ids = !empty($data['ids']) && is_array($data['ids']) ? $data['ids'] : [];

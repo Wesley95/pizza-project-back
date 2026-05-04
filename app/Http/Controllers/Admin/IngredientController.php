@@ -77,7 +77,7 @@ class IngredientController extends Controller
      * 
      * @return mixed
      */
-    public function show($id) {
+    public function show(string|int $id) {
         try{
             return $this->success(Ingredient::findOrFail($id));
         }catch(\Exception $e) {
@@ -105,8 +105,11 @@ class IngredientController extends Controller
      * 
      * @param \Illuminate\Http\Request $request
      * @param \App\Http\Services\Admin\IngredientService $ingredientService
+     * 
+     * @return mixed
+     * 
      */
-    public function changeStatus(Request $request, $ingredientService) {
+    public function changeStatus(Request $request, IngredientService $ingredientService) {
         try{
             $ids = $request->ids;
             $ingredientService->changeStatus($ids);
